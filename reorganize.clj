@@ -1,8 +1,8 @@
-(import '(javax.swing JFrame JLabel JButton JPanel)
+(import '(javax.swing JFrame JLabel JButton JPanel BoxLayout)
         '(java.awt.event ActionListener)
         '(javax.imageio ImageIO)
         '(java.io File)
-        '(java.awt GridBagLayout GridBagConstraints Color Font RenderingHints))
+        '(java.awt Color Font RenderingHints))
 
 (defn create-model [] (ref "Useless data"))
 
@@ -36,36 +36,17 @@
     panel))
 
 (defn create-gui-panel [model]
-  (defn create-image-constraints []
-    (let [c (GridBagConstraints.)]
-      (set! (.fill c) (. GridBagConstraints BOTH))
-      (set! (.gridx c) 1)
-      (set! (.weightx c) 10)
-      c))
 
-  (defn create-panel-constraints []
-    (let [c (GridBagConstraints.)]
-      (set! (.gridy c) 1)
-      (set! (.weighty c) 1)
-      (set! (.fill c) (. GridBagConstraints BOTH))
-      c))
-
-  (let [gridbag (GridBagLayout.)
+  (let [pane (JPanel.)
+        box (BoxLayout. pane (. BoxLayout X_AXIS))
         image1 (create-image "/usr/share/icons/Faenza/apps/32/AdobeReader.png")
         image2 (create-image "/usr/share/icons/Faenza/apps/32/Thunar.png")
         image3 (create-image "/usr/share/icons/Faenza/apps/48/WorldOfGoo.png")
         ;panel (create-graphics-panel model)
         ]
-    ;set up the gridbag constraints
-    (doto gridbag
-      (.setConstraints image1 (create-image-constraints))
-      (.setConstraints image2 (create-image-constraints))
-      (.setConstraints image3 (create-image-constraints))
-      ;(.setConstraints panel (create-panel-constraints))
-      )
     ;add the components to the panel and return it
-    (doto (JPanel.)
-      (.setLayout gridbag)
+    (doto pane
+      (.setLayout box)
       (.add image1)
       (.add image2)
       (.add image3)
