@@ -38,7 +38,7 @@
 (defn create-gui-panel [model]
 
   (let [pane (JPanel.)
-        box (BoxLayout. pane (. BoxLayout X_AXIS))
+        box (BoxLayout. pane BoxLayout/X_AXIS)
         image1 (create-image "/usr/share/icons/Faenza/apps/32/AdobeReader.png")
         image2 (create-image "/usr/share/icons/Faenza/apps/32/Thunar.png")
         image3 (create-image "/usr/share/icons/Faenza/apps/48/WorldOfGoo.png")
