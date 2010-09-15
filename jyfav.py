@@ -11,16 +11,20 @@ from java.lang import Runtime
 from java.io import *
 
 
+DEFAULT_ICON = '/usr/share/pixmaps/apple-red.png'
+
+# TODO: load svg, xpm or put in text labels
+
 class IconButton(object):
-    def __init__(self, owner, iconPath):
+    def __init__(self, owner, app, iconPath):
+        self.app = app
+
         i = sw.ImageIcon(iconPath)
         self.button = sw.JButton(i)
+        self.button.setToolTipText(iconPath.split('/')[-1].split('.')[0]) # hack to get the app name
 
         listner = Clicker(owner, self)
         self.button.addActionListener(listner)
-
-        # hack to get the app name
-        self.app = iconPath.split('/')[-1].split('.')[0]
 
 class Clicker(aw.event.ActionListener):
     def __init__(self, owner, button):
@@ -54,9 +58,6 @@ class FickleFav(sw.JFrame):
     """
 
     def __init__(self):
-        """
-        Constructor.
-        """
         self.setDefaultCloseOperation(sw.WindowConstants.EXIT_ON_CLOSE)
         self.hand = None
 
@@ -112,16 +113,16 @@ class FickleFav(sw.JFrame):
         self.getContentPane().revalidate()
 
     def _get_initial_button_list(self):
-        # TODO: use GconfTool
-        icons = [
-            "/usr/share/icons/Faenza/apps/48/WorldOfGoo.png"
-            , "/usr/share/icons/Faenza/apps/48/abiword.png"
-            , "/usr/share/icons/Faenza/apps/48/akregator.png"
-            , "/usr/share/icons/Faenza/apps/48/amarok.png"
-            , "/usr/share/icons/Faenza/apps/48/amule.png"
-            , "/usr/share/icons/Faenza/apps/48/AdobeReader.png"]
+        gtool = GconfTool()
+        buttons = []
+        for app in gtool.get_app_list():
+            icon = gtool.get_app_icon(app)
+            if not icon:
+                print 'WARNING: using default icon', DEFAULT_ICON
+                icon = DEFAULT_ICON
+            buttons.append( IconButton(self, app, icon) )
 
-        return [IconButton(self, path) for path in icons]
+        return buttons
 
 
     def set_hand(self, button):
@@ -143,8 +144,10 @@ class FickleFav(sw.JFrame):
 
 
     def post_fav(self):
-        for b in self.buttonList:
-            print b.app
+        faves = [b.app for b in self.buttonList]
+        gtool = GconfTool()
+        gtool.write_favorites(faves)
+
 
     def restart_launcher(self):
         # Stupid old jython won't let me do this:
@@ -166,34 +169,64 @@ class GconfTool(object):
     def __init__(self):
         self._gtool = "/usr/bin/gconftool-2"
         self._fav = "/apps/netbook-launcher/favorites/"
+        self._favorites_list = self._fav + "favorites_list"
+        self._favListType = ' --type=list --list-type=string '
         self._icon_regex = re.compile("Icon=(.*)$")
 
-    def _get(self, cmd):
-        getCmd = self._gtool + " --get " + cmd
-        p = Runtime.getRuntime().exec(getCmd)
+    def _get(self, key):
+        cmd = self._gtool + " --get " + key
+        return self._gconftool(cmd)
+
+    def _set(self, key, ktype, value):
+        cmd = self._gtool + " --set " + ktype + key + ' ' + value
+        return self._gconftool(cmd)
+
+    def _gconftool(self, cmd):
+        p = Runtime.getRuntime().exec(cmd)
         output = p.getInputStream()
         return _get_first_string(output)
 
     def get_app_list(self):
-        kvalue = self._get(self._fav + "favorites_list")
-        kvalue = kvalue.strip('[]')
-        return kvalue.split(',')
+        faves = self._get(self._favorites_list)
+        faves = faves.strip('[]')
+        return faves.split(',')
 
     def get_app_icon(self, app):
         icon = "."
         desktop = self._get(self._fav + app + "/desktop_file")
-        for line in open(desktop, 'r'):
-            match = icon_regex.search(line)
-            if match:
-                icon = match.group(1)
+        try:
+            for line in open(desktop, 'r'):
+                match = self._icon_regex.search(line)
+                if match:
+                    icon = match.group(1)
+        except:
+            # TODO: Should I do something special here?
+            #
+            # probably was an IOError. for some reason, if we catch by type,
+            # the IOError slips past.
+            # Since we don't have a legit desktop file, do nothing and maybe we
+            # get skipped.
+            return
 
         if icon[0] == os.sep:
             # already a full path
             return icon
         else:
             # special function, we need to find the icon
-            possibilities = glob.glob('/usr/share/pixmaps/' + icon + '.*')
-            return possibilities[0]
+            # TODO: clean this up with generic image object
+            possibilities = glob.glob('/usr/share/pixmaps/' + icon + '.png')
+            if possibilities:
+                return possibilities[0]
+            else:
+                print 'WARNING: Cannot find icon', icon, 'for', app
+                print '\t desktop file:', desktop
+                print '\t attempting gnome icon'
+                return '/usr/share/icons/gnome/32x32/apps/' + icon + '.png'
+
+    def write_favorites(self, favorites):
+        faves = ','.join(favorites)
+        faves = '[' + faves + ']'
+        self._set(self._favorites_list, self._favListType, faves)
 
 
 
