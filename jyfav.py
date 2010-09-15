@@ -1,9 +1,14 @@
-#! /usr/bin/env python
+#! /usr/bin/env jython
 
 import sys
+import os
+import re
+import glob
 
 import javax.swing as sw
 import java.awt as aw
+from java.lang import Runtime
+from java.io import *
 
 
 class IconButton(object):
@@ -25,12 +30,12 @@ class Clicker(aw.event.ActionListener):
     def actionPerformed(self, evt):
         self.owner.activate(self.button)
 
-class PostFav(aw.event.ActionListener):
-    def __init__(self, owner):
-        self.owner = owner
+class ProxyActionListener(aw.event.ActionListener):
+    def __init__(self, action):
+        self.action = action
 
     def actionPerformed(self, evt):
-        self.owner.post_fav()
+        self.action()
 
 
 def add_dimensions(result, addhend):
@@ -77,7 +82,11 @@ class FickleFav(sw.JFrame):
         menu = sw.JMenu("Menu")
 
         menuItem = sw.JMenuItem("Write Favorites Order")
-        menuItem.addActionListener(PostFav(self))
+        menuItem.addActionListener(ProxyActionListener(self.post_fav))
+        menu.add(menuItem)
+
+        menuItem = sw.JMenuItem("Restart Netbook-launcher")
+        menuItem.addActionListener(ProxyActionListener(self.restart_launcher))
         menu.add(menuItem)
 
         menuBar.add(menu)
@@ -136,17 +145,25 @@ class FickleFav(sw.JFrame):
         for b in self.buttonList:
             print b.app
 
+    def restart_launcher(self):
+        # Stupid old jython won't let me do this:
+        #import subprocess
+        #subprocess.call("killall netbook-launcher")
+        #pid = subprocess.Popen(["netbook-launcher", ""]).pid
+
+        os.system("killall netbook-launcher")
+        Runtime.getRuntime().exec("/usr/bin/netbook-launcher")
+
+
 
 def main():
     try:
-        ## Set System L&F
         sw.UIManager.setLookAndFeel( sw.UIManager.getSystemLookAndFeelClassName())
     except: #UnsupportedLookAndFeelException e
         pass
         ## ignore exception
 
     fav = FickleFav()
-    #fav.setSize(400, 400)
     fav.setLocation(0, 0)
     fav.setVisible(True)
 
