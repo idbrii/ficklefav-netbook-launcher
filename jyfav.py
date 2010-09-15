@@ -112,6 +112,7 @@ class FickleFav(sw.JFrame):
         self.getContentPane().revalidate()
 
     def _get_initial_button_list(self):
+        # TODO: use GconfTool
         icons = [
             "/usr/share/icons/Faenza/apps/48/WorldOfGoo.png"
             , "/usr/share/icons/Faenza/apps/48/abiword.png"
@@ -153,6 +154,46 @@ class FickleFav(sw.JFrame):
 
         os.system("killall netbook-launcher")
         Runtime.getRuntime().exec("/usr/bin/netbook-launcher")
+
+def _get_first_string(inputStream):
+    reader = BufferedReader( InputStreamReader(inputStream, "UTF-8") )
+    return reader.readLine()
+
+class GconfTool(object):
+    """
+    This class represents gconftool-2
+    """
+    def __init__(self):
+        self._gtool = "/usr/bin/gconftool-2"
+        self._fav = "/apps/netbook-launcher/favorites/"
+        self._icon_regex = re.compile("Icon=(.*)$")
+
+    def _get(self, cmd):
+        getCmd = self._gtool + " --get " + cmd
+        p = Runtime.getRuntime().exec(getCmd)
+        output = p.getInputStream()
+        return _get_first_string(output)
+
+    def get_app_list(self):
+        kvalue = self._get(self._fav + "favorites_list")
+        kvalue = kvalue.strip('[]')
+        return kvalue.split(',')
+
+    def get_app_icon(self, app):
+        icon = "."
+        desktop = self._get(self._fav + app + "/desktop_file")
+        for line in open(desktop, 'r'):
+            match = icon_regex.search(line)
+            if match:
+                icon = match.group(1)
+
+        if icon[0] == os.sep:
+            # already a full path
+            return icon
+        else:
+            # special function, we need to find the icon
+            possibilities = glob.glob('/usr/share/pixmaps/' + icon + '.*')
+            return possibilities[0]
 
 
 
