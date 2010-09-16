@@ -13,8 +13,6 @@ from java.io import *
 
 DEFAULT_ICON = '/usr/share/pixmaps/apple-red.png'
 
-# TODO: load svg, xpm or put in text labels
-
 class IconButton(object):
     def __init__(self, owner, app, iconPath):
         self.app = app
@@ -51,6 +49,70 @@ def add_dimensions_horiz(result, addhend):
     w = result.getWidth()
     h = max( result.getHeight(), addhend.getHeight() )
     result.setSize( w+addhend.getWidth(), h )
+
+class Icon(object):
+    def __init__(self, icon):
+        """
+        Constructor.
+
+        icon -- The path to the provided icon
+        """
+        assert icon is not None
+        self.icon = icon
+
+        self.icon = self._validate_icon(icon)
+
+
+    def _validate_icon(self, icon):
+        if icon[0] != os.sep:
+            # no absolute path
+            icon = self._find_icon(icon)
+        assert icon[0] == os.sep, 'we need a full path for %s' % icon
+
+        if not icon.endswith('.png'):
+            print 'WARNING: Converting %s to png' % icon
+            icon = self._convert_to_png(icon)
+
+        return icon
+
+
+    def _convert_to_png(self, filename):
+        app = os.path.basename(filename) + '.png'
+        tempdir = tempfile.gettempdir()
+        newfile = os.path.join(tempdir, 'netbook-launcher-fav-' + app)
+        os.system('/usr/bin/convert -resize x32 '+ filename + ' ' + newfile)
+        return newfile
+
+    def _check_icon_exists(self, iconpath):
+        # don't have a full path, we need to find the icon
+        possibilities = glob.glob(iconpath)
+        for i in possibilities:
+            if i.endswith('.png'):
+                return i, possibilities
+        return None, possibilities
+
+    def _find_icon(self, app):
+        # We were only given a name, so assume it's in the pixmaps
+        betterIcon, possibilities = self._check_icon_exists('/usr/share/pixmaps/' + app + '*')
+        if betterIcon:
+            return betterIcon
+
+        # no png available, try gnome
+        gnome = '/usr/share/icons/gnome/32x32/apps/' + app + '.png'
+        betterIcon, gnomeOptions = self._check_icon_exists(gnome)
+        if betterIcon:
+            print 'WARNING: Cannot find icon', app
+            print '\t attempting gnome icon'
+            return betterIcon
+
+        # pass on one of the non png images
+        if possibilities:
+            return possibilities[0]
+        else:
+            if gnomeOptions:
+                return gnomeOptions[0]
+            return app
+
 
 class FickleFav(sw.JFrame):
     """
@@ -120,6 +182,8 @@ class FickleFav(sw.JFrame):
             if not icon:
                 print 'WARNING: using default icon', DEFAULT_ICON
                 icon = DEFAULT_ICON
+            i = Icon(icon)
+            icon = i.icon
             buttons.append( IconButton(self, app, icon) )
 
         return buttons
@@ -198,7 +262,7 @@ class GconfTool(object):
             for line in open(desktop, 'r'):
                 match = self._icon_regex.search(line)
                 if match:
-                    icon = match.group(1)
+                    return match.group(1)
         except:
             # TODO: Should I do something special here?
             #
@@ -207,21 +271,6 @@ class GconfTool(object):
             # Since we don't have a legit desktop file, do nothing and maybe we
             # get skipped.
             return
-
-        if icon[0] == os.sep:
-            # already a full path
-            return icon
-        else:
-            # special function, we need to find the icon
-            # TODO: clean this up with generic image object
-            possibilities = glob.glob('/usr/share/pixmaps/' + icon + '.png')
-            if possibilities:
-                return possibilities[0]
-            else:
-                print 'WARNING: Cannot find icon', icon, 'for', app
-                print '\t desktop file:', desktop
-                print '\t attempting gnome icon'
-                return '/usr/share/icons/gnome/32x32/apps/' + icon + '.png'
 
     def write_favorites(self, favorites):
         faves = ','.join(favorites)
