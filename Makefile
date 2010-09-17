@@ -5,4 +5,7 @@ scratch:
 clj:
 	clojure reorganize.clj
 
+README.html:	README.rst
+	rst2html README.rst > README.html
+
 .PHONEY: scratch clj
